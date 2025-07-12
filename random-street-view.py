@@ -40,24 +40,44 @@ class RandomStreetView:
             random_lon = random.uniform(min_lon, max_lon)
             random_lat = random.uniform(min_lat, max_lat)
             if country_polygon.contains(Point(random_lon, random_lat)):
-                return random_lon, random_lat
+                return random_lon, random_lat, self.shape_data.loc[iso_country_index]
 
-    def valid_streetview(self, coords):
+    def check_valid_streetview(self, coords):
 
         # Note: Google deems it valid if the coordinate is < 50 m from a street view
         # Therefore, response lat & lon could differ from input
         res = requests.get(f'https://maps.googleapis.com/maps/api/streetview/metadata?location={coords[1]},{coords[0]}&key={self.google_api_key}')
-        print(res.json())
         if res.json()['status'] != 'OK':
             return False
-        with open(self.valid_street_view_path, 'a') as f:
-            json.dump(res.json(), f)
-            f.write('\n')
-        return res
+        return True
+
+    def check_and_save_valid_streetview(self, coords, country_data=None, verbose=False):
+        res = requests.get(f'https://maps.googleapis.com/maps/api/streetview/metadata?location={coords[1]},{coords[0]}&key={self.google_api_key}')
+        if verbose:
+            print(res.json())
+        if res.json()['status'] == 'OK':
+            with open(self.valid_street_view_path, 'a') as f:
+                if country_data is None:
+                    json.dump(res.json(), f)
+                    f.write('\n')
+                else:
+                    json.dump({'iso3': country_data['shapeGroup'], 'name': country_data['shapeName'], 'street_view_metadata': res.json()}, f)
+                    f.write('\n')
+            return True
+        return False
+
+    def save_street_view_from_official_api(self, coords):
+
+        res = requests.get(f'https://maps.googleapis.com/maps/api/streetview?size=600x400&location={coords[1]},{coords[0]}&key={self.google_api_key}')
+        if res.json()['status'] == 'OK':
+            with open('data/street_view_data/pic.jpg', 'w') as f:
+                f.write(res.content)
+                return True
+        return False
 
 if __name__ == '__main__':
-    random_street_view = RandomStreetView('data/geo_boundaries/geoBoundariesCGAZ_ADM0.shp', 'data/street_view_data/usa.jsonl')
+    random_street_view = RandomStreetView('data/geo_boundaries/geoBoundariesCGAZ_ADM0.shp', 'data/street_view_data/valid_street_views_with_country.jsonl')
     while True:
-        coords = random_street_view.generate_random_coordinates('USA')
-        random_street_view.valid_streetview(coords)
-        time.sleep(.01)
+        lon, lat, country = random_street_view.generate_random_coordinates()
+        random_street_view.check_and_save_valid_streetview((lon, lat), country, True)
+        time.sleep(.001)

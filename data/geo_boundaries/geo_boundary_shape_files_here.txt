@@ -1,1 +1,2 @@
 https://www.geoboundaries.org/globalDownloads.html
+https://github.com/wmgeolab/geoBoundaries/raw/main/releaseData/CGAZ/geoBoundariesCGAZ_ADM0.zip
