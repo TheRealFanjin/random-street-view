@@ -11,7 +11,6 @@ street_view_countries_iso3 = [
         "AUT",  # Austria
         "BGD",  # Bangladesh
         "BEL",  # Belgium
-        "BMU",  # Bermuda
         "BTN",  # Bhutan
         "BOL",  # Bolivia
         "BWA",  # Botswana
@@ -100,6 +99,5 @@ load_dotenv()
 while True:
     random_street_view = RSV(os.getenv('GOOGLE_API_KEY'), gpd.read_file("./data/geo_boundaries/geoBoundariesCGAZ_ADM0.shp"))
     rnd = random.choice(street_view_countries_iso3)
-    print(rnd)
     location = random_street_view.generate_valid_location(rnd)
     location.save_metadata('data/street_view_data/valid_street_views_with_country_fixed.jsonl')
