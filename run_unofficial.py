@@ -1,16 +1,8 @@
-from rsv import RSV, StreetViewLocation
-import geopandas as gpd
-from dotenv import load_dotenv
+import json
+import time
 import os
-
-
-load_dotenv()
-random_street_view = RSV(os.getenv('GOOGLE_API_KEY'), gpd.read_file(
-    "../data/geo_boundaries/geoBoundariesCGAZ_ADM0.shp"))
-location = random_street_view.generate_valid_location('USA')
-"""
-location.save_metadata('results/test.jsonl')
-location.save_street_view(os.getenv('GOOGLE_API_KEY'), file_path="results/test_pic.jpeg")"""
+import random
+from rsv import StreetViewLocation
 
 headers = {
     "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
@@ -32,4 +24,16 @@ headers = {
     "x-browser-year": "2025",
     "x-client-data": "CJC2yQEIpLbJAQipncoBCOfrygEIk6HLAQijo8sBCIagzQEIpfLOAQiS9s4BCJn3zgEI9vnOAQjf+84BGMr6zgE="
 }
-location.save_street_view_unofficial(request_headers=headers, zoom_level=3, folder_path="results")
+
+with open('data/street_view_data/batch1.jsonl', 'r') as f:
+    for line in f.readlines():
+        data = json.loads(line)
+        lat = data['street_view_metadata']['location']['lat']
+        lng = data['street_view_metadata']['location']['lng']
+        location = StreetViewLocation(latitude=lat, longitude=lng, pano_id=data['street_view_metadata']['pano_id'], country_code=data['name'])
+        path = f'data/street_view_data/street_view_images/{data['iso3']}_{lat}_{lng}'
+        if os.path.exists(path):
+            continue
+        os.mkdir(path)
+        location.save_street_view_unofficial(request_headers=headers, zoom_level=3, folder_path=path)
+        time.sleep(random.uniform(.5, 10))

@@ -55,6 +55,51 @@ class StreetViewLocation:
             with open(file_path, 'wb') as f:
                 f.write(res.content)
 
+    def save_street_view_unofficial(self, request_headers: dict[str:str], zoom_level: int, folder_path: str = os.getcwd()):
+        """
+        Zoom 0: 1 tile wide, 0.5 tiles high (resulting in one 512x256 tile)
+        Zoom 1: 2 tiles wide, 1 tile high (a 2x1 grid)
+        Zoom 2: 4 tiles wide, 2 tiles high (a 4x2 grid)
+        Zoom 3: 8 tiles wide, 4 tiles high (an 8x4 grid)
+        Zoom 4: 16 tiles wide, 8 tiles high (a 16x8 grid)
+        Zoom 5: 32 tiles wide, 16 tiles high (a 32x16 grid)
+        """
+        client = httpx.Client(headers=request_headers, http2=True)
+        match zoom_level:
+            case 1:
+                x_count = 2
+                y_count = 1
+            case 2:
+                x_count = 4
+                y_count = 2
+            case 3:
+                x_count = 8
+                y_count = 4
+            case 4:
+                x_count = 16
+                y_count = 8
+            case 5:
+                x_count = 32
+                y_count = 16
+            case _:
+                raise ValueError('Invalid zoom level', zoom_level)
+
+        for x in range(x_count):
+            for y in range(y_count):
+                request_url = f'https://streetviewpixels-pa.googleapis.com/v1/tile?cb_client=maps_sv.tactile&panoid={self.pano_id}&x={x}&y={y}&zoom={zoom_level}&nbt=1&fover=2'
+                res = client.get(request_url)
+                if res.status_code == 200:
+                    with open(str(Path(folder_path) / f'{self.pano_id}_{self.country_code}_x{x}_y{y}.jpeg'), 'wb') as f:
+                        f.write(res.content)
+                elif res.status_code == 400:
+                    with open(str(Path(folder_path) / f'{self.pano_id}_{self.country_code}_x{x}_y{y}.txt'), 'w') as f:
+                        f.write(res.text)
+                    break
+                else:
+                    raise ValueError('Invalid response', res.status_code, res.text)
+
+
+
 class RSV:
     def __init__(self, google_api_key: str, shape_data: gpd.GeoDataFrame = f'{os.getcwd()}'):
         self.shape_data = shape_data
@@ -78,7 +123,7 @@ class RSV:
             random_lon = random.uniform(min_lon, max_lon)
             random_lat = random.uniform(min_lat, max_lat)
             if country_polygon.contains(Point(random_lon, random_lat)):
-                street_view_metadata_res = requests.get(f'https://maps.googleapis.com/maps/api/streetview/metadata?location={random_lat},{random_lon}&key={self.google_api_key}&radius=50000')
+                street_view_metadata_res = requests.get(f'https://maps.googleapis.com/maps/api/streetview/metadata?location={random_lat},{random_lon}&key={self.google_api_key}&radius=50000&source=outdoor')
                 if street_view_metadata_res.status_code == 200 and street_view_metadata_res.json()['status'] == 'OK':
                     return StreetViewLocation(country_code=self.shape_data.loc[iso_country_index]['shapeGroup'], country_name=self.shape_data.loc[iso_country_index]['shapeName'], pano_id=street_view_metadata_res.json()['pano_id'], street_view_metadata=street_view_metadata_res.json())
 
